@@ -1,18 +1,17 @@
 import { notFound } from 'next/navigation'
-import { CustomMDX } from 'app/components/mdx'
 import { formatDate, getBlogPosts } from 'app/blog/utils'
 import { baseUrl } from 'app/sitemap'
+import dynamic from 'next/dynamic'
 
 export async function generateStaticParams() {
-  let posts = getBlogPosts()
-
-  return posts.map((post) => ({
-    slug: post.slug,
-  }))
+  const posts = getBlogPosts()
+  return posts.map(post => ({ slug: post.slug }))
 }
 
-export function generateMetadata({ params }) {
-  let post = getBlogPosts().find((post) => post.slug === params.slug)
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  let post = getBlogPosts().find((post) => post.slug.trim() === slug.trim())
   if (!post) {
     return
   }
@@ -51,16 +50,24 @@ export function generateMetadata({ params }) {
   }
 }
 
-export default function Blog({ params }) {
-  let post = getBlogPosts().find((post) => post.slug === params.slug)
+export default async function Blog({ params, }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  let post = getBlogPosts().find((post) => post.slug.trim() === slug.trim())
+  console.log("Params slug:", slug)
+  console.log("Found post:", post)
 
   if (!post) {
     notFound()
   }
 
+  const Post = dynamic(
+    () => import(`@/content/${slug}.mdx`),
+    { ssr: false } // ensures it only renders on client
+  );
+
   return (
     <section>
-      <script
+      {/* <script
         type="application/ld+json"
         suppressHydrationWarning
         dangerouslySetInnerHTML={{
@@ -76,22 +83,36 @@ export default function Blog({ params }) {
               : `/og?title=${encodeURIComponent(post.metadata.title)}`,
             url: `${baseUrl}/blog/${post.slug}`,
             author: {
-              '@type': 'Person',
+              '@type': 'Joy Mwende Karani',
               name: 'My Portfolio',
             },
           }),
         }}
-      />
+      /> */}
       <h1 className="title font-semibold text-2xl tracking-tighter">
         {post.metadata.title}
       </h1>
-      <div className="flex justify-between items-center mt-2 mb-8 text-sm">
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          {formatDate(post.metadata.publishedAt)}
-        </p>
+
+      <div className="flex flex-wrap gap-2 mt-2 mb-8 text-sm text-neutral-600 dark:text-neutral-400">
+        <p>{formatDate(post.metadata.publishedAt)}</p>
+        {post.metadata.tags && (
+          <div className="flex flex-wrap gap-2">
+            {post.metadata.tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-2 py-1 bg-neutral-200 dark:bg-neutral-800 rounded-md text-xs font-medium"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
+
       <article className="prose">
-        <CustomMDX source={post.content} />
+      <Post />
+
+        {/* <CustomMDX source={post.content} /> */}
       </article>
     </section>
   )
