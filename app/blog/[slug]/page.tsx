@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import { formatDate, getBlogPosts } from 'app/blog/utils'
 import { baseUrl } from 'app/sitemap'
-import dynamic from 'next/dynamic'
+import BlogClient from './BlogClient'
+import Image from 'next/image'
 
 export async function generateStaticParams() {
   const posts = getBlogPosts()
@@ -53,17 +54,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function Blog({ params, }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   let post = getBlogPosts().find((post) => post.slug.trim() === slug.trim())
-  console.log("Params slug:", slug)
-  console.log("Found post:", post)
 
   if (!post) {
     notFound()
   }
-
-  const Post = dynamic(
-    () => import(`@/content/${slug}.mdx`),
-    { ssr: false } // ensures it only renders on client
-  );
 
   return (
     <section>
@@ -108,10 +102,17 @@ export default async function Blog({ params, }: { params: Promise<{ slug: string
           </div>
         )}
       </div>
+      {/* metadata image */}
+      <Image
+        src={post.metadata.image || '/images/keep-going.jpg'}
+        alt={post.metadata.title}
+        width={800}
+        height={200}
+        className="w-full h-auto mb-8 rounded-md"
+      />
 
-      <article className="prose">
-      <Post />
-
+      <article className="prose prose-neutral dark:prose-invert">
+        <BlogClient content={post.content} />
         {/* <CustomMDX source={post.content} /> */}
       </article>
     </section>
